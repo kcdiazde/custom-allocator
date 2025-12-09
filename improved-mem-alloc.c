@@ -38,7 +38,35 @@ void initializeMemBlocks() {
         memBlocks[blockNum].headNode.pAddr = NULL;
         memBlocks[blockNum].headNode.isFree = true;
         memBlocks[blockNum].headNode.size = 0;
+        memBlocks[blockNum].headNode.next = NULL;
     }
+}
+
+void printMemBlocksInfo() {
+    printf("\n - Memory Blocks hierarchy:\n");
+
+    for (size_t blockNum = 0; blockNum < MAX_NUM_BLOCKS; ++blockNum) {
+        MemBlock_t * currBlock = &(memBlocks[blockNum]);
+
+        if (currBlock->pHead) {
+            printf("\tBlock #%ld\n", blockNum);
+
+            printf("\t\t - pHead = %p\n", currBlock->pHead);
+            printf("\t\t - totalSize = %ld\n", currBlock->totalSize);
+            printf("\t\t - sizeAvail = %ld\n", currBlock->sizeAvail);
+            MemNode_t * currNode = &(currBlock->headNode);
+
+            printf("\t\t Nodes:\n");
+            while (currNode != NULL) {
+                printf("\t\t\t - Node with pAddr = %p\n", currNode->pAddr);
+                printf("\t\t\t - isFree = %s\n", currNode->isFree ? "true" : "false");
+                printf("\t\t\t - size = %ld\n", currNode->size);
+                printf("\n");
+                currNode = currNode->next;
+            }
+        }
+    }
+    
 }
 
 void * memAlloc(size_t sizeRequested) {
@@ -92,13 +120,17 @@ void * memAlloc(size_t sizeRequested) {
                 freeAreaNode->pAddr = pAddr + sizeRequested;
                 freeAreaNode->isFree = true;
                 freeAreaNode->size = actualSize - sizeRequested;
+                freeAreaNode->next = NULL;
 
                 memBlocks[blockNum].headNode.next = freeAreaNode;
+                break;
             }
         }
     }
     else {
-        // TODO 
+        // Find a free node inside block
+
+        
     }
 
 
@@ -124,11 +156,13 @@ int main() {
 
     initializeMemBlocks();
 
-    size_t sizeToReq = 10;
+    size_t sizeToReq = 1000;
     uint16_t * arr1 = NULL;
 
     arr1 = (uint16_t *) memAlloc(sizeof(uint16_t) * sizeToReq);
     assert(arr1 != NULL);
+
+    printMemBlocksInfo();
 
     fillArr(arr1, sizeToReq);
 

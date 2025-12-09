@@ -1,54 +1,70 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <stdbool.h>
 
 // TODO: Detect when no pages avaliable anymore. Each for loop
+// TODO: Not use malloc
 
 #define MAX_NUM_BLOCKS 10
 
-struct MemBlock;
+typedef struct MemNode MemNode_t;
 
-struct MemBlock {
-    void * pAddr; 
-    size_t totalSize;
-    size_t sizeAvail;
+struct MemNode {
+    void * pAddr;
+    bool isFree;
+    size_t size;
+    MemNode_t * next;
 };
 
-struct MemBlock memBlocks[MAX_NUM_BLOCKS] = {};
+typedef struct {
+    void * pHead; 
+    size_t totalSize;
+    size_t sizeAvail; // TODO: Needed?
+    MemNode_t headNode;
+} MemBlock_t;
+
+MemBlock_t memBlocks[MAX_NUM_BLOCKS] = {};
 
 // To allow "dynamic" number of blocks
 void initializeMemBlocks() {
-    
     for (size_t blockNum = 0; blockNum < MAX_NUM_BLOCKS; ++blockNum) {
-        memBlocks[blockNum].pAddr = NULL;
+        memBlocks[blockNum].pHead= NULL;
+        memBlocks[blockNum].totalSize = 0;
         memBlocks[blockNum].sizeAvail = 0;
+        memBlocks[blockNum].headNode.pAddr = NULL;
+        memBlocks[blockNum].headNode.isFree = true;
+        memBlocks[blockNum].headNode.size = 0;
     }
 }
 
-void * llMalloc(size_t size) {
+void * memAlloc(size_t sizeRequested) {
+    printf(" - %s\n", __func__);
+    // TODO: Check alignment
 
     void * pAddr = NULL;
 
     // Look for avaliable memblock
     size_t blockToUse = MAX_NUM_BLOCKS;
-    printf("Will search for a block to use...\n");
+    printf("\tWill search for a block to use...\n");
     for (size_t blockNum = 0; blockNum < MAX_NUM_BLOCKS; ++blockNum) {
-        if (memBlocks[blockNum].sizeAvail >= size) {
+        if (memBlocks[blockNum].sizeAvail >= sizeRequested) {
             blockToUse = blockNum;        
         }
     }
 
     // Not found, needs a new block
     if (blockToUse == MAX_NUM_BLOCKS) {
-        printf("Block not found, creating...\n");
+        printf("\tBlock not found, creating...\n");
 
         const long k_pageSize = sysconf(_SC_PAGESIZE);
-        const size_t numPagesNeeded = (size_t)(size / k_pageSize) + 1;
+        const size_t numPagesNeeded = (size_t)(sizeRequested / k_pageSize) + 1;
         const size_t actualSize = numPagesNeeded * k_pageSize;
 
-        printf("Needs %ld pages of total size %ld\n", numPagesNeeded, actualSize);
+        printf("\tNeeds %ld pages of total size %ld\n", numPagesNeeded, actualSize);
 
         pAddr = mmap(
               NULL, 
@@ -61,10 +77,23 @@ void * llMalloc(size_t size) {
 
         // Find first avalialable block
         for (size_t blockNum = 0; blockNum < MAX_NUM_BLOCKS; ++blockNum) {
-            if (memBlocks[blockNum].pAddr == NULL) {
-                memBlocks[blockNum].pAddr = pAddr;
+            if (memBlocks[blockNum].pHead== NULL) {
+                memBlocks[blockNum].pHead = pAddr;
                 memBlocks[blockNum].totalSize = actualSize;
-                memBlocks[blockNum].sizeAvail = actualSize - size;
+                memBlocks[blockNum].sizeAvail = actualSize - sizeRequested;
+
+                // Initialize MemNode
+                memBlocks[blockNum].headNode.pAddr = pAddr;
+                memBlocks[blockNum].headNode.isFree = false;
+                memBlocks[blockNum].headNode.size = sizeRequested;
+
+                // New node of free area
+                MemNode_t * freeAreaNode = (MemNode_t*) malloc(sizeof(MemNode_t));
+                freeAreaNode->pAddr = pAddr + sizeRequested;
+                freeAreaNode->isFree = true;
+                freeAreaNode->size = actualSize - sizeRequested;
+
+                memBlocks[blockNum].headNode.next = freeAreaNode;
             }
         }
     }
@@ -98,7 +127,7 @@ int main() {
     size_t sizeToReq = 10;
     uint16_t * arr1 = NULL;
 
-    arr1 = (uint16_t *) llMalloc(sizeof(uint16_t) * sizeToReq);
+    arr1 = (uint16_t *) memAlloc(sizeof(uint16_t) * sizeToReq);
     assert(arr1 != NULL);
 
     fillArr(arr1, sizeToReq);

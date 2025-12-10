@@ -6,14 +6,12 @@
 #include <sys/mman.h>
 #include <stdbool.h>
 
-// TODO: Detect when no pages avaliable anymore. Each for loop
-// TODO: Not use malloc
-
 typedef struct MemNode MemNode_t;
 struct MemNode {
     void * pAddr;
     bool isFree;
     size_t size;
+    int uniqueId;
     MemNode_t * next;
 };
 
@@ -32,6 +30,8 @@ MemBlock_t headMemBlock = {.pHead = NULL,
                            .totalSize = 0,
                            .sizeAvail = 0};
 
+int idCounter = 0;
+
 MemBlock_t * getNewBlock() {
     MemBlock_t * newBlock = NULL;
     newBlock = (MemBlock_t *) malloc(sizeof(MemBlock_t));
@@ -39,6 +39,7 @@ MemBlock_t * getNewBlock() {
     newBlock->totalSize = 0;
     newBlock->sizeAvail = 0;
     newBlock->next = NULL;
+    newBlock->headNode.uniqueId = idCounter++;
 
     return newBlock;
 }
@@ -69,6 +70,7 @@ void printMemBlocksInfo() {
                 printf("\t\t\t - Node with pAddr = %p\n", currNode->pAddr);
                 printf("\t\t\t - isFree = %s\n", currNode->isFree ? "true" : "false");
                 printf("\t\t\t - size = 0x%lx\n", currNode->size);
+                printf("\t\t\t - ID = %d\n", currNode->uniqueId);
                 printf("\n");
                 currNode = currNode->next;
             }
@@ -130,6 +132,7 @@ MemNode_t * getNewNode() {
      newNode->isFree = true;
      newNode->size = 0;
      newNode->next = NULL;
+     newNode->uniqueId = idCounter++;
 
      return newNode;
 }
@@ -252,28 +255,31 @@ int main() {
 
     initializeMemBlock();
 
-    size_t size1 = 0x100 / sizeof(uint16_t);
-    uint16_t * arr1 = (uint16_t *) memAlloc(sizeof(uint16_t) * size1);
-    assert(arr1 != NULL);
+    // size_t size1 = 0x100 / sizeof(uint16_t);
+    // uint16_t * arr1 = (uint16_t *) memAlloc(sizeof(uint16_t) * size1);
+    // assert(arr1 != NULL);
 
-    size_t size2 = 0x2000 / sizeof(uint16_t);
-    uint16_t * arr2 = (uint16_t *) memAlloc(sizeof(uint16_t) * size2);
-    assert(arr2 != NULL);
+    // size_t size2 = 0x2000 / sizeof(uint16_t);
+    // uint16_t * arr2 = (uint16_t *) memAlloc(sizeof(uint16_t) * size2);
+    // assert(arr2 != NULL);
 
-    size_t size3 = 0x10 / sizeof(uint16_t);
-    uint16_t * arr3 = (uint16_t *) memAlloc(sizeof(uint16_t) * size3);
-    assert(arr3 != NULL);
+    // size_t size3 = 0x10 / sizeof(uint16_t);
+    // uint16_t * arr3 = (uint16_t *) memAlloc(sizeof(uint16_t) * size3);
+    // assert(arr3 != NULL);
 
-    size_t size4 = 0x1000 / sizeof(uint16_t);
-    uint16_t * arr4 = (uint16_t *) memAlloc(sizeof(uint16_t) * size4);
-    assert(arr4 != NULL);
+    // size_t size4 = 0x1000 / sizeof(uint16_t);
+    // uint16_t * arr4 = (uint16_t *) memAlloc(sizeof(uint16_t) * size4);
+    // assert(arr4 != NULL);
+
+    for (int i = 20; i > 0; i--) {
+        volatile uint16_t * arr = (uint16_t *) memAlloc(sizeof(uint16_t) * i * 0x100);
+        volatile uint16_t * altArr = (uint16_t *) memAlloc(sizeof(uint16_t) * i * 0x10);
+    }
 
 
     printMemBlocksInfo();
 
-    fillArr(arr1, size1);
-    fillArr(arr2, size2);
-    fillArr(arr3, size3);
+    // fillArr(arr3, size3);
 
     return 0;
 }
